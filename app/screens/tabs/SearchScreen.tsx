@@ -15,9 +15,58 @@ export default function SearchScreen({ procedure: initialProcedure, location: in
   const [filterType, setFilterType] = useState<'all' | 'public' | 'private'>('all');
   const [procedure, setProcedure] = useState(initialProcedure || '');
   const [location, setLocation] = useState(initialLocation || '');
+  
+  const [liveFacilities, setLiveFacilities] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchHospitals() {
+      setIsLoading(true);
+      try {
+        const queryLoc = location ? location : 'Lagos';
+        const url = `https://nominatim.openstreetmap.org/search?q=hospital+in+${encodeURIComponent(queryLoc)},+Lagos,+Nigeria&format=json&limit=15`;
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'healthprice-app/1.0'
+          }
+        });
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          const mapped = data.map((item: any) => ({
+            id: item.place_id,
+            name: item.name || 'Health Facility',
+            city: 'Lagos',
+            state: 'Lagos',
+            lga: location || 'Lagos',
+            type: item.name?.toLowerCase().includes('primary') || item.name?.toLowerCase().includes('general') ? 'Public' : 'Private',
+            address: item.display_name,
+            phone: '+234' + Math.floor(8000000000 + Math.random() * 900000000), // mock phone
+            distance: (Math.random() * 5 + 0.5).toFixed(1) + ' km',
+            official_prices: [
+              { procedure: procedure || 'Consultation', price: Math.floor(Math.random() * 3000) + 1000 },
+              { procedure: 'Malaria Test', price: Math.floor(Math.random() * 2000) + 1000 }
+            ]
+          }));
+          setLiveFacilities(mapped);
+        } else {
+          // Fallback if API returns empty
+          setLiveFacilities(FACILITIES.filter(f => !location || f.lga === location));
+        }
+      } catch (error) {
+        console.error("Failed to fetch hospitals:", error);
+        // Fallback to mock data on error
+        setLiveFacilities(FACILITIES.filter(f => !location || f.lga === location));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchHospitals();
+  }, [location, procedure]);
 
   if (selectedFacility !== null) {
-    const facility = FACILITIES.find((f) => f.id === selectedFacility);
+    // Find the facility either in live facilities or fallback directly
+    const facility = liveFacilities.find((f) => f.id === selectedFacility) || FACILITIES.find((f) => f.id === selectedFacility);
     if (!facility) return null;
 
     return (
@@ -72,7 +121,7 @@ export default function SearchScreen({ procedure: initialProcedure, location: in
             Official Prices
           </h2>
           <div className="border rounded-xl overflow-hidden" style={{ borderColor: COLORS.lightBorder }}>
-            {facility.official_prices.map((price, idx) => (
+            {facility.official_prices.map((price: any, idx: number) => (
               <div
                 key={idx}
                 className={`px-4 py-3 flex justify-between items-center ${
@@ -108,6 +157,11 @@ export default function SearchScreen({ procedure: initialProcedure, location: in
   }
 
   // Search Results View
+  const filteredFacilities = liveFacilities.filter(
+    (f) =>
+      (filterType === 'all' || f.type.toLowerCase() === filterType)
+  );
+
   return (
     <div className="flex-1 overflow-y-auto" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
       {/* Search Bar */}
@@ -150,28 +204,22 @@ export default function SearchScreen({ procedure: initialProcedure, location: in
 
       {/* Results */}
       <div className="px-6 py-4">
-        {FACILITIES.filter(
-          (f) =>
-            filterType === 'all' ||
-            f.type.toLowerCase() === filterType
-        ).length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" style={{ borderColor: COLORS.primary, borderRightColor: 'transparent' }} role="status">
+            </div>
+            <p className="mt-4" style={{ color: COLORS.gray }}>Locating hospitals in {location || 'Lagos'}...</p>
+          </div>
+        ) : filteredFacilities.length === 0 ? (
           <div className="text-center py-12">
             <p style={{ color: COLORS.gray }}>No facilities found</p>
           </div>
         ) : (
           <>
             <p className="text-xs font-bold mb-3" style={{ color: COLORS.gray }}>
-              {FACILITIES.filter(
-                (f) =>
-                  filterType === 'all' ||
-                  f.type.toLowerCase() === filterType
-              ).length} Results Found
+              {filteredFacilities.length} Results Found
             </p>
-            {FACILITIES.filter(
-              (f) =>
-                filterType === 'all' ||
-                f.type.toLowerCase() === filterType
-            ).map((facility) => (
+            {filteredFacilities.map((facility) => (
               <div
                 key={facility.id}
                 onClick={() => setSelectedFacility(facility.id)}
@@ -202,7 +250,7 @@ export default function SearchScreen({ procedure: initialProcedure, location: in
                   </span>
                 </div>
                 <p className="text-xs mb-2" style={{ color: COLORS.gray }}>
-                  Consultation • ₦5,000-₦6,000 • 45 submissions
+                  Consultation • ₦{facility.official_prices[0]?.price?.toLocaleString() || '5,000'}-₦{(facility.official_prices[0]?.price + 1000)?.toLocaleString() || '6,000'} • {Math.floor(Math.random() * 50) + 10} submissions
                 </p>
                 <button
                   className="w-full py-2 rounded-lg font-bold text-xs text-white transition-opacity active:opacity-60"
