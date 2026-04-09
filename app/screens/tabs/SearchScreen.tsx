@@ -8,9 +8,10 @@ interface SearchScreenProps {
   procedure?: string;
   location?: string;
   onSelectFacility?: (facilityId: number) => void;
+  onEdit?: () => void;
 }
 
-export default function SearchScreen({ procedure: initialProcedure, location: initialLocation, onSelectFacility }: SearchScreenProps) {
+export default function SearchScreen({ procedure: initialProcedure, location: initialLocation, onSelectFacility, onEdit }: SearchScreenProps) {
   const [selectedFacility, setSelectedFacility] = useState<number | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'public' | 'private'>('all');
   const [procedure, setProcedure] = useState(initialProcedure || '');
@@ -177,7 +178,7 @@ export default function SearchScreen({ procedure: initialProcedure, location: in
             {procedure} {location ? `in ${location}` : 'in Lagos'}
           </p>
         </div>
-        <button className="px-3 py-2 rounded-lg" style={{ backgroundColor: COLORS.lightGray }}>
+        <button onClick={onEdit} className="px-3 py-2 rounded-lg" style={{ backgroundColor: COLORS.lightGray }}>
           Edit
         </button>
       </div>

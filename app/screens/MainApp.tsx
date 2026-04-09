@@ -31,7 +31,7 @@ export default function MainApp({ user, onLogout }: MainAppProps) {
           />
         );
       case 'search':
-        return <SearchScreen procedure={searchParams.procedure} location={searchParams.location} />;
+        return <SearchScreen procedure={searchParams.procedure} location={searchParams.location} onEdit={() => setActiveTab('home')} />;
       case 'submit':
         return <SubmitPriceScreen />;
       case 'profile':
